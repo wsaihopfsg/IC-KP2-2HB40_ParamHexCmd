@@ -35,8 +35,8 @@
         #customInput { width: 45px; text-align: center; text-transform: uppercase; }
         #userInput { flex-grow: 1; font-family: monospace; text-transform: uppercase; }
         
-        button { background-color: #005fcc; color: white; border: none; font-weight: 500; cursor: pointer;}
-        button:hover { background-color: #004ba3; }
+        button { background-color: #00a587; color: white; border: none; font-weight: 500; cursor: pointer;}
+        button:hover { background-color: #00915e; }
         button:disabled { background-color: #cccccc; color: #666; cursor: not-allowed; }
         
         .output-group { 
@@ -61,6 +61,18 @@
             color: white;
         }
         .copy-btn:hover:not(:disabled) { background-color: #111; }
+		.button-row {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .clear-btn {
+            background-color: #d32f2f;
+            color: white;
+			margin-left: auto;
+        }
+        
+        .clear-btn:hover { background-color: #b71c1c; }
 
         #toast {
             visibility: hidden;
@@ -104,7 +116,10 @@
 
     <div class="output-group">
         <div id="outputDisplay" class="output-box">Select or enter a command, then press Read/Write</div>
-        <button id="btnCopy" class="copy-btn" disabled>Copy to Clipboard</button>
+        <div class="button-row">
+            <button id="btnCopy" class="copy-btn" disabled>Copy to Clipboard</button>
+            <button id="btnClear" class="clear-btn">Clear</button>
+        </div>
     </div>
 </div>
 
@@ -207,6 +222,7 @@
     const btnRead = document.getElementById('btnRead');
     const btnWrite = document.getElementById('btnWrite');
     const btnCopy = document.getElementById('btnCopy');
+	const btnClear = document.getElementById('btnClear');
     const toast = document.getElementById('toast');
 
     let currentHexString = "";
@@ -363,6 +379,21 @@
                 console.error('Failed to copy text: ', err);
             });
         }
+    });
+	// --- CLEAR BUTTON LOGIC ---
+    btnClear.addEventListener('click', () => {
+        select.value = "";
+        customInput.value = "";
+        userInput.value = "";
+        currentHexString = "";
+        
+        // Reset Display
+        outputDisplay.textContent = "Select or enter a command, then press Read/Write";
+        
+        // Reset Buttons
+        btnCopy.disabled = true;
+        btnRead.disabled = false;
+        btnWrite.disabled = false;
     });
 </script>
 </body>
