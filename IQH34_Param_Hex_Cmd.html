@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HEX Command Generator</title>
+    <style>
+        body { 
+            font-family: system-ui, -apple-system, sans-serif; 
+            margin: 2rem; 
+            background-color: #f9f9f9;
+        }
+        .container { 
+            max-width: 750px; 
+            padding: 24px; 
+            background: #ffffff;
+            border: 1px solid #e0e0e0; 
+            border-radius: 8px; 
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+        .controls { 
+            margin-bottom: 20px; 
+            display: flex; 
+            gap: 10px;
+            align-items: center;
+        }
+        select, input[type="text"], button { 
+            padding: 10px 16px; 
+            font-size: 16px; 
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        select { cursor: pointer; }
+        
+        #customInput { width: 45px; text-align: center; text-transform: uppercase; }
+        #userInput { flex-grow: 1; font-family: monospace; text-transform: uppercase; }
+        
+        button { background-color: #005fcc; color: white; border: none; font-weight: 500; cursor: pointer;}
+        button:hover { background-color: #004ba3; }
+        button:disabled { background-color: #cccccc; color: #666; cursor: not-allowed; }
+        
+        .output-group { 
+            display: flex; 
+            flex-direction: column; 
+            gap: 12px; 
+        }
+        .output-box { 
+            padding: 16px; 
+            background: #f4f5f7; 
+            border: 1px solid #d1d5db; 
+            border-radius: 4px;
+            font-family: monospace; 
+            font-size: 16px; 
+            color: #333;
+            min-height: 24px; 
+            word-break: break-all; 
+        }
+        .copy-btn {
+            align-self: flex-start;
+            background-color: #333;
+            color: white;
+        }
+        .copy-btn:hover:not(:disabled) { background-color: #111; }
+
+        #toast {
+            visibility: hidden;
+            min-width: 250px;
+            background-color: #d32f2f;
+            color: #fff;
+            text-align: center;
+            border-radius: 4px;
+            padding: 16px;
+            position: fixed;
+            z-index: 1;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 16px;
+            opacity: 0;
+            transition: opacity 0.3s, visibility 0.3s;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+        }
+        #toast.show {
+            visibility: visible;
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Command Generator</h2>
+    <div class="controls">
+        <select id="commandSelect">
+            <option value="">-- Select --</option>
+        </select>
+        
+        <input type="text" id="customInput" maxlength="2" placeholder="xx">
+        <input type="text" id="userInput" placeholder="[User Input] (e.g. 00:01)">
+        
+        <button id="btnRead">Read</button>
+        <button id="btnWrite">Write</button>
+    </div>
+
+    <div class="output-group">
+        <div id="outputDisplay" class="output-box">Select or enter a command, then press Read/Write</div>
+        <button id="btnCopy" class="copy-btn" disabled>Copy to Clipboard</button>
+    </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+    const commands = [
+        "AF", "BB", "CT", "DA", "DD", "DN", "DR", "DS", "E5", "ED", "FR", "IF", "LM", 
+        "MF", "ND", "NT", "OH", "PT", "QV", "QW", "RC", "RD", "RL", "RU", "RV", "SN", 
+        "ST", "T2", "T3", "T4", "T5", "TA", "TE", "TI", "TO", "UB", "UT", "VO"
+    ];
+
+    const commandDescriptions = {
+        "AF": "AFI filter",
+        "BB": "Reset all parameters to factory settings",
+		"CT": "Tag Type",
+		"DA": "Device Address",
+		"DD": "Combined diagnostic data of OH, ST, TE and VO",
+		"DN": "Device Serial Number",
+		"DR": "Data Rate",
+		"DS": "Data Swap",
+		"E5": "Tag Lost Smoothing",
+		"ED": "Standalone End Delimiter",
+		"FR": "Sequence Mode sets the behavior for write access",
+		"IF": "RSSI display",
+		"LM": "LED Masking",
+		"MF": "Reflected Power",
+		"ND": "Niose Detection Level",
+		"NT": "Number of tags to find",
+		"OH": "Readout of operating hours counter",
+		"PT": "Power of Transmission",
+		"QV": "Single or multi frame mode",
+		"QW": "Q-value for anti-collision",
+		"RC": "Region code",
+		"RD": "Reset to default",
+		"RL": "RSSI Lower Limit",
+		"RU": "RSSI Upper Limit",
+		"RV": "SVN Revision",
+		"SN": "Readout of micro controller serial number",
+		"ST": "Readout of frontend state",
+		"T2": "Set application identification", 
+		"T3": "Set function identification", 
+		"T4": "Set location identification", 
+		"T5": "Set installation identification", 
+		"TA": "Set number of access attempts on the transponder", 
+		"TE": "Device Temperature", 
+		"TI": "Set UID filter", 
+		"TO": "Set device behavior on over temperature", 
+		"UB": "Set baud rate", 
+		"UT": "Set UART timeout", 
+		"VO": "Readout of internal voltage and current values"
+    };
+
+    const commandAccess = {
+        "AF": "RW",
+        "BB": "WO", // Write-Only
+		"CT": "RW",
+		"DA": "RW",
+        "DD": "RO",  // Read-Only
+		"DD": "RO", 
+		"DN": "RO",
+		"DR": "RW", 
+		"DS": "RW", 
+		"E5": "RW", 
+		"ED": "RW", 
+		"FR": "RW", 
+		"IF": "RW", 
+		"LM": "RW",
+		"MF": "RO", 
+		"ND": "RW", 
+		"NT": "RW", 
+		"OH": "RO", 
+		"PT": "RW", 
+		"QV": "RW", 
+		"QW": "RW", 
+		"RC": "RW", 
+		"RD": "WO", 
+		"RL": "RW", 
+		"RU": "RW", 
+		"RV": "RO", 
+		"SN": "RO",
+		"ST": "RW", 
+		"T2": "RW", 
+		"T3": "RW", 
+		"T4": "RW", 
+		"T5": "RW", 
+		"TA": "RW", 
+		"TE": "RO", 
+		"TI": "RW", 
+		"TO": "RW", 
+		"UB": "RW", 
+		"UT": "RW", 
+		"VO": "RO"
+    };
+    
+    const select = document.getElementById('commandSelect');
+    const customInput = document.getElementById('customInput');
+    const userInput = document.getElementById('userInput');
+    const outputDisplay = document.getElementById('outputDisplay');
+    const btnRead = document.getElementById('btnRead');
+    const btnWrite = document.getElementById('btnWrite');
+    const btnCopy = document.getElementById('btnCopy');
+    const toast = document.getElementById('toast');
+
+    let currentHexString = "";
+
+    commands.forEach(cmd => {
+        const option = document.createElement('option');
+        option.value = cmd;
+        option.textContent = cmd;
+        
+        const desc = commandDescriptions[cmd] || `${cmd} command`;
+        option.title = desc; 
+        
+        select.appendChild(option);
+    });
+
+    customInput.addEventListener('input', () => {
+        if (customInput.value.length > 0) {
+            select.value = ""; 
+            
+            btnRead.disabled = false;
+            btnWrite.disabled = false;
+        }
+    });
+
+    select.addEventListener('change', () => {
+        if (select.value !== "") {
+            customInput.value = ""; 
+            
+            const access = commandAccess[select.value] || "RW";
+            
+            if (access === "RO") {
+                btnRead.disabled = false;
+                btnWrite.disabled = true;
+            } else if (access === "WO") {
+                btnRead.disabled = true;
+                btnWrite.disabled = false;
+            } else { 
+                btnRead.disabled = false;
+                btnWrite.disabled = false;
+            }
+        } else {
+            btnRead.disabled = false;
+            btnWrite.disabled = false;
+        }
+    });
+
+    userInput.addEventListener('input', (e) => {
+        let cleanedValue = userInput.value.toUpperCase().replace(/[^0-9A-F:]/g, '');
+
+        if (cleanedValue.length > 0 && !userInput.value.includes(':')) {
+            const chunks = cleanedValue.match(/.{1,2}/g);
+            if (chunks) {
+                cleanedValue = chunks.join(':');
+            }
+        }
+
+        userInput.value = cleanedValue;
+    });
+
+    function showToast(message) {
+        toast.textContent = message;
+        toast.classList.add("show");
+        setTimeout(() => {
+            toast.classList.remove("show");
+        }, 3000);
+    }
+
+    function getValidCommand() {
+        const customVal = customInput.value.trim();
+        const selectVal = select.value;
+
+        if (!customVal && !selectVal) {
+            showToast("Error: Please select a command or enter a 2-character code.");
+            return null;
+        }
+
+        if (customVal) {
+            if (customVal.length !== 2) {
+                showToast("Error: Custom command must be exactly 2 characters.");
+                return null;
+            }
+            return customVal.toUpperCase();
+        }
+
+        return selectVal;
+    }
+
+    function getAsciiHex(char) {
+        return char.charCodeAt(0).toString(16).toUpperCase().padStart(2, '0');
+    }
+
+    btnRead.addEventListener('click', () => {
+        const cmd = getValidCommand();
+        if (!cmd) return; 
+
+        const hex1 = getAsciiHex(cmd[0]);
+        const hex2 = getAsciiHex(cmd[1]);
+        
+        currentHexString = `00:0B:00:00:08:BE:51:${hex1}:${hex2}:00:00`;
+        
+        outputDisplay.textContent = currentHexString;
+        btnCopy.disabled = false;
+    });
+
+    btnWrite.addEventListener('click', () => {
+        const cmd = getValidCommand();
+        if (!cmd) return; 
+
+        const rawUserInput = userInput.value.trim().toUpperCase();
+        
+        const hex1 = getAsciiHex(cmd[0]);
+        const hex2 = getAsciiHex(cmd[1]);
+        
+        let ll = "00";
+        let payloadSuffix = "";
+
+        // UPDATED: Only process payload if user actually entered one
+        if (rawUserInput) {
+            const payloadRegex = /^([0-9A-F]{2})(:[0-9A-F]{2})*$/;
+            if (!payloadRegex.test(rawUserInput)) {
+                showToast("Error: Invalid [User Input]. Use colon-delimited HEX pairs (e.g., 00:01).");
+                return;
+            }
+            const bytesCount = rawUserInput.split(':').length;
+            ll = bytesCount.toString(16).toUpperCase().padStart(2, '0');
+            payloadSuffix = `:${rawUserInput}`;
+        }
+
+        // Dynamically build string. If no payload, it ends at :00 (LL)
+        currentHexString = `00:0D:00:00:0A:BF:51:${hex1}:${hex2}:00:${ll}${payloadSuffix}`;
+        
+        outputDisplay.textContent = currentHexString;
+        btnCopy.disabled = false;
+    });
+
+    btnCopy.addEventListener('click', () => {
+        if (currentHexString) {
+            navigator.clipboard.writeText(currentHexString).then(() => {
+                const originalText = btnCopy.textContent;
+                btnCopy.textContent = "Copied!";
+                setTimeout(() => btnCopy.textContent = originalText, 2000);
+            }).catch(err => {
+                console.error('Failed to copy text: ', err);
+            });
+        }
+    });
+</script>
+</body>
+</html>
