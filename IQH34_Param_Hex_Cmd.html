@@ -320,6 +320,7 @@
         const hex1 = getAsciiHex(cmd[0]);
         const hex2 = getAsciiHex(cmd[1]);
         
+		let bytesCount = 0;
         let ll = "00";
         let payloadSuffix = "";
 
@@ -330,13 +331,16 @@
                 showToast("Error: Invalid [User Input]. Use colon-delimited HEX pairs (e.g., 00:01).");
                 return;
             }
-            const bytesCount = rawUserInput.split(':').length;
+            bytesCount = rawUserInput.split(':').length;
             ll = bytesCount.toString(16).toUpperCase().padStart(2, '0');
             payloadSuffix = `:${rawUserInput}`;
         }
+		// Calculate dynamic header values: LL + 11 and LL + 8
+        const byte2 = (bytesCount + 11).toString(16).toUpperCase().padStart(2, '0');
+        const byte5 = (bytesCount + 8).toString(16).toUpperCase().padStart(2, '0');
 
         // Dynamically build string. If no payload, it ends at :00 (LL)
-        currentHexString = `00:0D:00:00:0A:BF:51:${hex1}:${hex2}:00:${ll}${payloadSuffix}`;
+        currentHexString = `00:${byte2}:00:00:${byte5}:BF:51:${hex1}:${hex2}:00:${ll}${payloadSuffix}`;
         
         outputDisplay.textContent = currentHexString;
         btnCopy.disabled = false;
