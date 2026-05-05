@@ -96,7 +96,7 @@
         </select>
         
         <input type="text" id="customInput" maxlength="2" placeholder="xx">
-        <input type="text" id="userInput" placeholder="[User Input] (e.g. 00:01)">
+        <input type="text" id="userInput" maxlength="95" placeholder="[User Input] (e.g. 00:01) max 32 bytes">
         
         <button id="btnRead">Read</button>
         <button id="btnWrite">Write</button>
@@ -253,19 +253,21 @@
         }
     });
 
-    userInput.addEventListener('input', (e) => {
-        let cleanedValue = userInput.value.toUpperCase().replace(/[^0-9A-F:]/g, '');
+	userInput.addEventListener('input', (e) => {
+        // 1. Strip EVERYTHING except valid hex characters (removes old colons)
+        let rawHex = userInput.value.toUpperCase().replace(/[^0-9A-F]/g, '');
 
-        if (cleanedValue.length > 0 && !userInput.value.includes(':')) {
-            const chunks = cleanedValue.match(/.{1,2}/g);
+        // 2. Instantly rebuild the string with colons every 2 characters
+        if (rawHex.length > 0) {
+            const chunks = rawHex.match(/.{1,2}/g);
             if (chunks) {
-                cleanedValue = chunks.join(':');
+                userInput.value = chunks.join(':');
             }
+        } else {
+            userInput.value = "";
         }
-
-        userInput.value = cleanedValue;
     });
-
+	
     function showToast(message) {
         toast.textContent = message;
         toast.classList.add("show");
@@ -332,6 +334,11 @@
                 return;
             }
             bytesCount = rawUserInput.split(':').length;
+			// NEW: Ensure the payload does not exceed 32 bytes
+            if (bytesCount > 32) {
+                showToast("Error: [User Input] cannot exceed 32 bytes.");
+                return;
+            }
             ll = bytesCount.toString(16).toUpperCase().padStart(2, '0');
             payloadSuffix = `:${rawUserInput}`;
         }
